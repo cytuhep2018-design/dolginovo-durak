@@ -20,6 +20,8 @@
    • Слоты:      #table-slots > .slot[data-slot="0..5"]
                  (.is-filled | .is-beaten | .is-taken | .is-hit)
                  > .card.slot__attack + .card.slot__defend
+                    (движок добавляет и алиасы .card--attack / .card--defend —
+                     style.css §8 держит тяжёлые селекторы по обоим именам)
    • Отбой:      #bito-pile (.is-empty | .is-full | .is-clearing)
    • Кнопки:     #btn-bito, #btn-take, #btn-new  (.is-disabled / [disabled])
    • Стол:       #table (.is-droppable — подсвечивает пустые слоты под ход)
@@ -532,7 +534,11 @@ function syncSlotCard(slotNode, kind, card) {
   let node = slotNode.querySelector(sel);
   if (node && node.dataset.card === card.id) return;
   if (node) node.remove();
-  node = createCard(card, 'slot__' + kind);
+  /* Алиас card--attack / card--defend держим рядом со slot__*: style.css §8 задаёт
+     карте на столе position:absolute + display:block именно тяжёлыми селекторами
+     (.slot > .card.slot__attack / .slot > .card--attack), иначе <span> остаётся
+     inline-«значком» без белого прямоугольника и без размеров. */
+  node = createCard(card, 'slot__' + kind + ' card--' + kind);
   slotNode.appendChild(node);
 }
 

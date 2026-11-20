@@ -265,7 +265,8 @@ b,strong{font-weight:800}
 .zone{min-height:0;min-width:0}
 .zone--opponent{display:grid;grid-template-rows:auto auto auto;gap:4px;justify-items:center;align-content:start}
 .zone--middle{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:center;min-height:0}
-.zone--player{display:grid;grid-template-rows:auto auto;gap:2px;justify-items:center;align-content:end}
+/* gap + padding-bottom — чтобы веер карт НЕ наползал на плашку-подсказку «ВЫ · DOLGIN» */
+.zone--player{display:grid;grid-template-rows:auto auto;gap:10px;justify-items:center;align-content:end;padding-bottom:4px}
 
 /* — плашки участников — */
 .seat{
@@ -329,7 +330,8 @@ b,strong{font-weight:800}
   --overlap:.34;    /* наложение карт (доля ширины)     */
 }
 .fan--opponent{--step:6.5deg;--lift:3px;--overlap:.5;--card-w:clamp(34px, min(9.6vw, 6.2vh), 48px);margin-bottom:calc(var(--card-w) * -.28)}
-.fan--player{--step:4.4deg;--lift:5px;--overlap:.3;--card-w:clamp(40px, min(12.4vw, 8.2vh), 62px);margin-top:calc(var(--card-w) * -.42);padding-bottom:2px}
+/* margin-top ПОЛОЖИТЕЛЬНЫЙ (раньше было −.42 / −.5 ширины карты → веер залезал на текст подсказки) */
+.fan--player{--step:4.4deg;--lift:5px;--overlap:.3;--card-w:clamp(40px, min(12.4vw, 8.2vh), 62px);margin-top:calc(var(--card-w,44px) * .16);padding-bottom:2px}
 .fan .card{
   --c:calc((var(--n) - 1) / 2);
   --d:max(calc(var(--i) - var(--c)), calc(var(--c) - var(--i)));
@@ -390,25 +392,61 @@ b,strong{font-weight:800}
 /* ───────────── 8 · ЦЕНТР СТОЛА: 6 СЛОТОВ ПАР «АТАКА + ОТЕТКА» ────────── */
 .slots{
   display:grid;
-  grid-template-columns:repeat(3,auto);
-  gap:4px;
+  grid-template-columns:repeat(3,auto);   /* 6 слотов = 2 ряда по 3 пары «атака + отбой» */
+  gap:6px;
   place-content:center;
   min-width:0;min-height:0;
-  --card-w:clamp(32px, min(10.4vw, 6.6vh), 52px);
+  /* карты на столе — в одном масштабе с рукой (рука: clamp(40px, min(12.4vw, 8.2vh), 62px)) */
+  --card-w:clamp(34px, min(11.6vw, 7.2vh), 56px);
 }
 /* размер слота = карта + смещение ответной карты, чтобы ничего не заползало */
-.slot{position:relative;width:calc(var(--card-w) * 1.4);height:calc(var(--card-w) * 1.62)}
+.slot{position:relative;width:calc(var(--card-w,44px) * 1.4);height:calc(var(--card-w,44px) * 1.62)}
 .slot:not(.is-filled)::before{
-  content:"";position:absolute;left:0;bottom:calc(var(--card-w) * .2);
-  width:var(--card-w);height:calc(var(--card-w) * 1.42);
-  border:1px dashed rgba(243,202,98,.22);border-radius:calc(var(--card-w) * .14);
+  content:"";position:absolute;left:0;bottom:calc(var(--card-w,44px) * .2);
+  width:var(--card-w,44px);height:calc(var(--card-w,44px) * 1.42);
+  border:1px dashed rgba(243,202,98,.22);border-radius:calc(var(--card-w,44px) * .14);
   background:rgba(0,0,0,.14);
 }
-.slot__attack{position:absolute;left:0;bottom:calc(var(--card-w) * .2);z-index:1;animation:card-drop .3s var(--ease) both}
-.slot__defend{position:absolute;left:calc(var(--card-w) * .4);bottom:0;z-index:2;transform:rotate(7deg);animation:card-beat .36s .08s var(--ease) both}
+/* ⚑ КРИТИЧНО: спецификатор обязан быть ТЯЖЕЛЕЕ базового .card{position:relative} (см. §10).
+   Раньше .slot__attack (0,1,0) стоял ДО .card (0,1,0) — выигрывал именно .card,
+   поэтому карта в слоте оставалась inline-`<span>` с position:relative: width/height
+   для inline-элемента игнорируются, и от белого прямоугольника оставались только
+   «значки масти и цифры». Тот же трюк ломал анимации card-drop / card-beat. */
+.slot > .card.slot__attack,
+.slot > .card--attack{
+  position:absolute;display:block;z-index:1;
+  left:0;bottom:calc(var(--card-w,44px) * .2);
+  width:var(--card-w,44px);height:calc(var(--card-w,44px) * 1.42);
+  animation:card-drop .3s var(--ease) both;
+}
+.slot > .card.slot__defend,
+.slot > .card--defend{
+  position:absolute;display:block;z-index:2;
+  left:calc(var(--card-w,44px) * .4);bottom:0;
+  width:var(--card-w,44px);height:calc(var(--card-w,44px) * 1.42);
+  transform:rotate(7deg);
+  animation:card-beat .36s .08s var(--ease) both;
+}
+/* белая глянцевая «бумага» карты на столе — продублирована явно (глянец даёт .card::before) */
+.slot > .card{
+  border-radius:calc(var(--card-w,44px) * .14);
+  background:linear-gradient(158deg,var(--paper-1) 0%,var(--paper-2) 46%,var(--paper-3) 100%);
+  border:1px solid rgba(10,18,26,.38);
+  box-shadow:
+    0 7px 16px rgba(0,0,0,.48),
+    inset 0 1px 0 rgba(255,255,255,.95),
+    inset 0 -5px 12px rgba(0,0,0,.08);
+}
+/* козырь на столе не теряет золотой ореол: без этого правила его съел бы блок .slot > .card */
+.slot > .card.card--trump{
+  box-shadow:0 0 0 1px var(--gold-2), 0 0 16px var(--neon), 0 7px 16px rgba(0,0,0,.48);
+}
 .slot.is-filled{animation:slot-pop .32s var(--ease)}
 .slot.is-beaten .slot__defend{animation:card-beat .36s var(--ease) both}
 .slot.is-taken .card{animation:card-take .55s var(--ease) forwards}
+/* «БИТО»/«БЕРУ» обязаны перебивать card-drop/card-beat: спецификатор тот же (0,3,0), но правило позже */
+.slot > .card.is-bit{animation:card-bit .45s var(--ease) both}
+.slot > .card.is-taking{animation:card-take .55s var(--ease) forwards}
 .slot.is-hit{animation:slot-hit .4s ease-out}
 
 /* ─────── 9 · КРУПНЫЕ КНОПКИ ДЕЙСТВИЙ ПОД БОЛЬШОЙ ПАЛЕЦ (БИТО / БЕРУ) ─── */
@@ -446,9 +484,11 @@ b,strong{font-weight:800}
 
 /* ───────────────────── 10 · ИГРАЛЬНЫЕ КАРТЫ (лицом вверх) ─────────────── */
 .card{
+  /* span превращаем в inline-block: width/height обязаны работать и вне flex/absolute */
+  display:inline-block;
   position:relative;flex:0 0 auto;
-  width:var(--card-w);height:calc(var(--card-w) * 1.42);
-  border-radius:calc(var(--card-w) * .14);
+  width:var(--card-w,44px);height:calc(var(--card-w,44px) * 1.42);
+  border-radius:calc(var(--card-w,44px) * .14);
   color:var(--suit-dark);
   background:linear-gradient(158deg,var(--paper-1) 0%,var(--paper-2) 46%,var(--paper-3) 100%);
   border:1px solid rgba(10,18,26,.38);
@@ -465,17 +505,18 @@ b,strong{font-weight:800}
   background:linear-gradient(116deg,rgba(255,255,255,.9) 0 14%,rgba(255,255,255,0) 36%,rgba(255,255,255,0) 66%,rgba(255,255,255,.42) 90%);
   opacity:.5;mix-blend-mode:screen;
 }
-/* уголок «ранг + масть» */
-.card .c{position:absolute;z-index:2;display:grid;justify-items:center;line-height:1;font-weight:800;letter-spacing:-.02em}
-.card .c-tl{top:5.5%;left:8%}
-.card .c-br{bottom:5.5%;right:8%;transform:rotate(180deg)}
-.card .r{font-size:calc(var(--card-w) * .27)}
-.card .s{font-size:calc(var(--card-w) * .2);margin-top:1px}
-/* крупная масть по центру */
+/* уголок «ранг + масть»: номинал +39% и крупнее по весу, строки стянуты (line-height .88),
+   чтобы огромный центральный значок не столкнулся с индексом в углу */
+.card .c{position:absolute;z-index:2;display:grid;justify-items:center;line-height:.88;font-weight:800;letter-spacing:-.03em}
+.card .c-tl{top:4.5%;left:6%}
+.card .c-br{bottom:4.5%;right:6%;transform:rotate(180deg)}
+.card .r{font-size:calc(var(--card-w,44px) * .375)}
+.card .s{font-size:calc(var(--card-w,44px) * .25);margin-top:0}
+/* крупная масть по центру — +36% */
 .card .pip{
   position:absolute;inset:0;z-index:1;display:grid;place-items:center;
-  font-size:calc(var(--card-w) * .52);
-  text-shadow:0 1px 0 rgba(255,255,255,.8), 0 -1px 1px rgba(0,0,0,.12);
+  font-size:calc(var(--card-w,44px) * .71);
+  text-shadow:0 1px 0 rgba(255,255,255,.85), 0 -1px 1px rgba(0,0,0,.14);
 }
 /* 🔴 красные и ⚫ тёмные масти */
 .card--spade,
@@ -523,18 +564,20 @@ b,strong{font-weight:800}
 .card--back::before{opacity:.32}
 
 /* ─────────────── 12 · СОСТОЯНИЯ КАРТ И СТОЛА (хуки для game.js) ──────── */
-/* Выбранная карта игрока: приподнята и подсвечена золотом */
+/* Выбранная карта игрока: приподнята и подсвечена золотом.
+   Подъём ограничен 20px (было 26px) — иначе поднятая карта может снова
+   закрыть текст подсказки в плашке «ВЫ · DOLGIN». */
 .fan--player .card{cursor:pointer}
 .fan--player .card.is-playable{filter:brightness(1.05) saturate(1.04)}
 .fan--player .card.is-selected{
   z-index:40;
-  transform:translateY(calc(var(--fan-y) - 26px)) rotate(calc(var(--fan-r) * .3)) scale(1.05);
+  transform:translateY(calc(var(--fan-y) - 20px)) rotate(calc(var(--fan-r) * .3)) scale(1.05);
   box-shadow:0 0 0 1px var(--gold-1), 0 0 24px var(--neon), 0 16px 28px rgba(0,0,0,.6);
   filter:brightness(1.08);
 }
 /* короткий «отскок» под пальцем */
 .fan--player .card:active{
-  transform:translateY(calc(var(--fan-y) - 15px)) rotate(calc(var(--fan-r) * .5)) scale(1.03);
+  transform:translateY(calc(var(--fan-y) - 12px)) rotate(calc(var(--fan-r) * .5)) scale(1.03);
 }
 /* стол готов принять карту (клик по столу = ход выбранной картой) */
 .table.is-droppable .table__neon{border-color:rgba(120,255,196,.4);box-shadow:inset 0 0 18px rgba(120,255,196,.2)}
@@ -549,7 +592,7 @@ b,strong{font-weight:800}
 .card.is-taking{animation:card-take .55s var(--ease) forwards}
 @media (hover:hover) and (pointer:fine){
   .fan--player .card.is-playable:hover{
-    transform:translateY(calc(var(--fan-y) - 18px)) rotate(calc(var(--fan-r) * .4)) scale(1.03);
+    transform:translateY(calc(var(--fan-y) - 14px)) rotate(calc(var(--fan-r) * .4)) scale(1.03);
   }
 }
 
@@ -622,8 +665,10 @@ b,strong{font-weight:800}
   .hud--top{gap:4px}
   .seat__hint{display:none}
   .table__surface{gap:2px;padding:7px 6px}
-  .fan--opponent{margin-bottom:calc(var(--card-w) * -.34)}
-  .fan--player{margin-top:calc(var(--card-w) * -.5)}
+  .fan--opponent{margin-bottom:calc(var(--card-w,44px) * -.34)}
+  /* и здесь отступ положительный — текст подсказки в плашке «ВЫ · DOLGIN» обязан быть виден */
+  .zone--player{gap:5px;padding-bottom:2px}
+  .fan--player{margin-top:calc(var(--card-w,44px) * .06)}
   .actions .btn{min-height:50px}
 }
 @media (max-height:600px){
@@ -631,7 +676,7 @@ b,strong{font-weight:800}
   .brand__sub,.side__caption{display:none}
   .fan--player{--card-w:clamp(34px, min(11.6vw, 7.4vh), 50px)}
   .fan--opponent{--card-w:clamp(30px, min(9vw, 5.6vh), 40px)}
-  .slots{--card-w:clamp(28px, min(9.6vw, 5.6vh), 42px)}
+  .slots{--card-w:clamp(32px, min(11.2vw, 6.6vh), 46px)}
   .side--deck{--card-w:clamp(30px, min(9.6vw, 5.6vh), 42px)}
   .side--bito{--card-w:clamp(28px, min(8.8vw, 5.2vh), 40px)}
   .actions .btn{min-height:46px;font-size:11px}
@@ -644,7 +689,9 @@ b,strong{font-weight:800}
   .brand__sub,.seat__hint,.side__caption{display:none}
   .fan--player{--card-w:clamp(28px, 6vh, 42px);--lift:2px}
   .fan--opponent{--card-w:clamp(26px, 5.4vh, 36px);--lift:1px;--overlap:.56}
-  .slots{--card-w:clamp(24px, 4.8vh, 34px);grid-template-columns:repeat(6,auto);gap:3px}
+  .slots{--card-w:clamp(28px, 5.6vh, 40px);grid-template-columns:repeat(6,auto);gap:4px}
+  .zone--player{gap:6px;padding-bottom:0}
+  .fan--player{margin-top:calc(var(--card-w,44px) * .04)}
   .side--deck{--card-w:clamp(26px, 5.2vh, 36px)}
   .side--bito{--card-w:clamp(24px, 4.8vh, 32px)}
   .zone--middle{gap:4px}
