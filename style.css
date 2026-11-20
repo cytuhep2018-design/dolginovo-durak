@@ -1,0 +1,696 @@
+/* ════════════════════════════════════════════════════════════════════════
+   🃏  Д О Л Г И Н О В О  ·  Д У Р А К   —   Telegram Mini App
+   ЭТАП 1 · визуальный слой: дорого-тёмный изумрудный бархат, золотой неон,
+   стеклянный HUD, глянцевые игральные карты, плавные CSS-анимации.
+
+   ВСЯ вёрстка масштабируется от --card-w = clamp(min(vw, vh)) — поэтому стол,
+   веера и кнопки гарантированно помещаются в 100dvh на 360–430 px без скролла.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────── 0 · RESET ────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{
+  overflow:hidden;                       /* никакого скролла в мини-аппе */
+  overscroll-behavior:none;
+  background:var(--bg);
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;
+  -webkit-appearance:none;appearance:none;touch-action:manipulation}
+input{font:inherit;margin:0}
+b,strong{font-weight:800}
+
+/* ────────────────────────── 1 · TOKENS ───────────────────────────────── */
+:root{
+  color-scheme:dark;
+
+  /* 🟩 бархат стола */
+  --bg:#02120d;
+  --felt-hi:#177f59;
+  --felt-mid:#0a5539;
+  --felt-lo:#053325;
+  --felt-edge:#021a13;
+
+  /* 🟨 золото / неон */
+  --gold-1:#fff2c4;
+  --gold-2:#f3ca62;
+  --gold-3:#c79a2c;
+  --gold-deep:#7d5c10;
+  --neon:rgba(243,202,98,.55);
+  --neon-soft:rgba(243,202,98,.20);
+
+  /* 🧊 стекло HUD */
+  --glass-bg:linear-gradient(180deg,rgba(12,70,50,.80),rgba(3,26,20,.60));
+  --glass-brd:rgba(243,202,98,.30);
+  --glass-blur:blur(14px) saturate(150%);
+  --glass-sh:inset 0 1px 0 rgba(255,255,255,.10), inset 0 -1px 0 rgba(0,0,0,.35), 0 10px 26px rgba(0,0,0,.45);
+
+  /* 🅰 текст */
+  --tx:#effaf4;
+  --tx-dim:rgba(239,250,244,.60);
+  --tx-dark:#08281c;
+  --danger:#ff5560;
+  --danger-deep:#a2121c;
+
+  /* 🂡 масти и бумага */
+  --suit-red:#d51f2c;
+  --suit-red-dk:#8b0f17;
+  --suit-dark:#141d27;
+  --suit-dark-dk:#091017;
+  --paper-1:#ffffff;
+  --paper-2:#f4f6fa;
+  --paper-3:#dde3ec;
+
+  /* 📐 геометрия (единая точка масштабирования) */
+  --card-w:clamp(38px, min(11.6vw, 7.4vh), 56px);
+  --card-r:calc(var(--card-w) * .14);
+  --pad:10px;
+  --safe-t:env(safe-area-inset-top, 0px);
+  --safe-b:env(safe-area-inset-bottom, 0px);
+  --font:"Exo 2",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+
+  /* ⏱ движение */
+  --ease:cubic-bezier(.22,.85,.28,1);
+}
+
+/* ───────────────────── 2 · ОБОЛОЧКА (100dvh + safe-area) ─────────────── */
+.app{
+  position:relative;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
+  gap:8px;
+  width:100%;
+  max-width:560px;
+  margin-inline:auto;
+  height:100vh;
+  height:100dvh;                          /* динамическая высота = без панелей Telegram */
+  padding:calc(var(--pad) + var(--safe-t)) var(--pad) calc(var(--pad) + var(--safe-b));
+  overflow:hidden;
+  background:
+    radial-gradient(90% 55% at 50% 0%,   #07281d 0%, transparent 62%),
+    radial-gradient(85% 55% at 50% 100%, #06201a 0%, transparent 58%),
+    var(--bg);
+  color:var(--tx);
+  font-family:var(--font);
+  font-weight:700;
+  line-height:1.25;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:manipulation;
+  -webkit-font-smoothing:antialiased;
+}
+/* золотая «пыль» поверх фона */
+.app::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.45;
+  background-image:radial-gradient(rgba(243,202,98,.16) 1px,transparent 1px);
+  background-size:24px 24px;
+  -webkit-mask-image:radial-gradient(75% 60% at 50% 38%,#000 10%,transparent 78%);
+  mask-image:radial-gradient(75% 60% at 50% 38%,#000 10%,transparent 78%);
+}
+.app > *{position:relative;z-index:1}
+
+/* ─────────────────── 3 · ВЕРХНЯЯ ПАНЕЛЬ (стеклянный HUD) ─────────────── */
+.hud{position:relative;width:100%;min-width:0}
+.hud--top{display:grid;gap:6px;z-index:6}
+.hud__row{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:nowrap}
+/* основная строка: логотип · баланс · выход */
+.hud__row--main{gap:7px}
+/* вторая строка: ставка · звук */
+.hud__row--sub{gap:7px}
+
+/* — логотип — */
+.brand{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0}
+.brand__icon{font-size:22px;line-height:1;filter:drop-shadow(0 0 8px var(--neon))}
+.brand__text{display:grid;min-width:0}
+.brand__title{
+  font-size:14px;font-weight:800;letter-spacing:.05em;white-space:nowrap;
+  background:linear-gradient(178deg,var(--gold-1) 0%,var(--gold-2) 52%,var(--gold-3) 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 10px rgba(243,202,98,.35));
+}
+.brand__dot{color:var(--gold-2);-webkit-text-fill-color:var(--gold-2)}
+.brand__sub{
+  font-size:8.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--tx-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* — баланс — */
+.balance{
+  display:flex;align-items:baseline;gap:5px;padding:6px 10px;border-radius:13px;
+  background:var(--glass-bg);border:1px solid var(--glass-brd);
+  box-shadow:var(--glass-sh);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+}
+.balance__label{font-size:8px;font-weight:700;letter-spacing:.16em;color:var(--tx-dim)}
+.balance__value{
+  font-size:15px;font-weight:800;letter-spacing:.02em;color:var(--gold-1);
+  text-shadow:0 0 12px var(--neon);font-variant-numeric:tabular-nums;
+}
+.balance__currency{font-size:11px;font-weight:800;color:var(--gold-2)}
+.balance.is-win{animation:balance-pop .55s var(--ease)}
+.balance.is-lose{animation:balance-shake .45s ease-in-out}
+
+/* — красная кнопка ВЫХОД — */
+.btn--exit{
+  flex:0 0 auto;padding:9px 12px;border-radius:13px;
+  font-size:11px;font-weight:800;letter-spacing:.08em;color:#fff;
+  background:linear-gradient(178deg,#ff7a7a 0%,var(--danger) 45%,var(--danger-deep) 100%);
+  border:1px solid rgba(255,190,190,.55);
+  box-shadow:0 8px 18px rgba(180,18,28,.45), inset 0 1px 0 rgba(255,255,255,.45);
+  text-shadow:0 1px 2px rgba(0,0,0,.45);
+  transition:transform .14s var(--ease),box-shadow .2s;
+}
+.btn--exit:active{transform:translateY(1px) scale(.97);box-shadow:0 4px 10px rgba(180,18,28,.5)}
+
+/* — выбор ставки 10 / 50 / 100 / 500 (radio → работает даже без JS) — */
+.bet{
+  display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;
+  padding:5px 8px;border-radius:14px;
+  background:linear-gradient(180deg,rgba(12,70,50,.62),rgba(3,26,20,.46));
+  border:1px solid rgba(243,202,98,.18);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+}
+.bet__label{font-size:8px;font-weight:700;letter-spacing:.16em;color:var(--tx-dim);white-space:nowrap}
+.bet__options{display:flex;gap:5px;flex:1 1 auto;min-width:0}
+.bet__opt{position:relative;flex:1 1 0;min-width:0}
+.bet__opt input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.bet__opt > span{
+  display:block;text-align:center;padding:5px 0;border-radius:9px;
+  font-size:11px;font-weight:800;color:var(--tx-dim);font-variant-numeric:tabular-nums;
+  background:rgba(255,255,255,.06);border:1px solid rgba(243,202,98,.16);
+  transition:all .18s var(--ease);
+}
+/* активная ставка: нативный :checked (работает даже без JS) + хук .is-active */
+.bet__opt input:checked + span,
+.bet__opt:has(input:checked) > span,
+.bet__opt.is-active:not(:has(input:checked)) > span{
+  color:var(--tx-dark);
+  background:linear-gradient(178deg,var(--gold-1),var(--gold-2) 60%,var(--gold-3));
+  border-color:var(--gold-1);
+  box-shadow:0 0 14px var(--neon), inset 0 1px 0 #fff;
+}
+.bet__opt:has(input:focus-visible) > span{outline:2px solid var(--gold-2);outline-offset:2px}
+
+/* — кнопка ЗВУК — */
+.btn--sound{
+  display:flex;align-items:center;gap:5px;flex:0 0 auto;
+  padding:8px 11px;border-radius:13px;
+  font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--gold-1);
+  background:var(--glass-bg);border:1px solid rgba(243,202,98,.26);
+  box-shadow:var(--glass-sh);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+  transition:transform .14s var(--ease),opacity .2s;
+}
+.btn--sound .btn__icon{font-size:13px;line-height:1}
+.btn__text{font-weight:800;letter-spacing:.12em;white-space:nowrap}
+.btn--sound.is-on{color:var(--gold-1);box-shadow:var(--glass-sh), 0 0 12px var(--neon-soft)}
+.btn--sound .ic-off{display:none}
+.btn--sound.is-off .ic-on{display:none}
+.btn--sound.is-off .ic-off{display:inline}
+.btn--sound.is-off{color:var(--tx-dim);opacity:.7}
+/* ─────────────── 4 · СТОЛ: изумрудный бархат + золотая неон-окантовка ── */
+.table{
+  display:grid;
+  grid-template-rows:minmax(0,1fr) auto;
+  gap:8px;
+  min-height:0;
+  z-index:2;
+}
+.table__surface{
+  position:relative;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  gap:4px;
+  min-height:0;
+  padding:9px 8px;
+  border:1px solid rgba(243,202,98,.45);
+  border-radius:26px;
+  overflow:hidden;
+  background:
+    radial-gradient(120% 66% at 50% 6%,  rgba(255,255,255,.07), transparent 55%),
+    radial-gradient(145% 105% at 50% 42%, var(--felt-hi) 0%, var(--felt-mid) 42%, var(--felt-lo) 78%, var(--felt-edge) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(243,202,98,.22),
+    inset 0 0 48px rgba(0,0,0,.55),
+    0 0 24px var(--neon-soft),
+    0 18px 44px rgba(0,0,0,.55);
+}
+/* плетение бархата */
+.table__surface::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.6;
+  background:
+    repeating-linear-gradient(45deg,  rgba(255,255,255,.040) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,.070)     0 1px, transparent 1px 3px);
+  mix-blend-mode:soft-light;
+}
+/* центральный «блик света» + виньетка по краям стола */
+.table__surface::after{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(52% 34% at 50% 46%, rgba(255,255,255,.10), transparent 72%),
+    radial-gradient(115% 115% at 50% 50%, transparent 52%, rgba(0,0,0,.55));
+}
+.table__surface > *{position:relative;z-index:1}
+/* двойная золотая неон-линия, «дышащая» как вывеска бара */
+.table__neon{
+  position:absolute;inset:6px;z-index:1;pointer-events:none;border-radius:20px;
+  border:1px solid rgba(243,202,98,.20);
+  box-shadow:inset 0 0 14px rgba(243,202,98,.14), 0 0 10px rgba(243,202,98,.10);
+  animation:neon-breathe 4.8s ease-in-out infinite;
+}
+
+/* ────────────────────────── 5 · ЗОНЫ СТОЛА ───────────────────────────── */
+.zone{min-height:0;min-width:0}
+.zone--opponent{display:grid;grid-template-rows:auto auto auto;gap:4px;justify-items:center;align-content:start}
+.zone--middle{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:center;min-height:0}
+.zone--player{display:grid;grid-template-rows:auto auto;gap:2px;justify-items:center;align-content:end}
+
+/* — плашки участников — */
+.seat{
+  display:flex;align-items:center;gap:7px;max-width:100%;
+  padding:4px 9px;border-radius:999px;
+  background:var(--glass-bg);border:1px solid rgba(243,202,98,.20);
+  box-shadow:var(--glass-sh);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  transition:box-shadow .25s,border-color .25s;
+}
+.seat__avatar{font-size:17px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))}
+.seat__info{display:grid;min-width:0}
+.seat__name{font-size:10px;font-weight:800;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seat__hint{font-size:8px;font-weight:600;letter-spacing:.04em;color:var(--tx-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seat--ai .seat__name{color:#ffd6da}
+.seat--you .seat__name{color:var(--gold-1)}
+.seat--you.is-active{border-color:rgba(243,202,98,.6);box-shadow:var(--glass-sh),0 0 16px var(--neon-soft)}
+/* пульсация «ИИ думает» */
+.seat--ai.is-thinking{border-color:rgba(255,120,130,.45);animation:ai-thinking 1.6s ease-in-out infinite}
+
+/* — счётчик карт в плашке — */
+.counter{
+  flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+  min-width:23px;height:23px;padding:0 7px;border-radius:999px;
+  font-size:11px;font-weight:800;color:var(--tx-dark);font-variant-numeric:tabular-nums;
+  background:linear-gradient(178deg,var(--gold-1),var(--gold-2) 55%,var(--gold-3));
+  box-shadow:0 0 12px var(--neon), inset 0 1px 0 #fff;
+}
+
+/* — плашка статуса хода — */
+.status{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:6px 14px;border-radius:999px;max-width:100%;
+  font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.04));
+  border:1px solid rgba(243,202,98,.35);
+  box-shadow:0 0 16px var(--neon-soft), inset 0 1px 0 rgba(255,255,255,.18);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  transition:color .3s,border-color .3s,box-shadow .3s;
+}
+.status__icon{font-size:12px;line-height:1}
+.status__text{text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.status__dots{display:inline-flex;gap:3px;align-items:center}
+.status__dots i{width:3px;height:3px;border-radius:50%;background:currentColor;animation:dot-blink 1.2s ease-in-out infinite}
+.status__dots i:nth-child(2){animation-delay:.16s}
+.status__dots i:nth-child(3){animation-delay:.32s}
+.status--you{color:#b6ffdd;border-color:rgba(120,255,196,.5);box-shadow:0 0 20px rgba(90,255,190,.26), inset 0 1px 0 rgba(255,255,255,.18)}
+.status--ai{color:#ffd2d7;border-color:rgba(255,140,150,.45);box-shadow:0 0 20px rgba(255,90,110,.22), inset 0 1px 0 rgba(255,255,255,.18)}
+.status--defend{color:#ffe8b4;border-color:rgba(255,206,110,.6);box-shadow:0 0 20px rgba(255,190,90,.3), inset 0 1px 0 rgba(255,255,255,.18);animation:status-pulse 1.4s ease-in-out infinite}
+.status--done{color:#cfe6f5;border-color:rgba(180,220,255,.35)}
+.status:not(.status--ai) .status__dots{display:none}
+
+/* ────────────────────────── 6 · ВЕЕРА КАРТ ───────────────────────────── */
+/* Геометрия веера строится на индексах карты: --i (0..n-1) и --n (кол-во).
+   Поднимаем средние карты выше, крайние — разворачиваем наружу.            */
+.fan{
+  display:flex;justify-content:center;align-items:flex-start;
+  --step:4deg;      /* угол наклона одной карты        */
+  --lift:4px;       /* подъём средних карт              */
+  --overlap:.34;    /* наложение карт (доля ширины)     */
+}
+.fan--opponent{--step:6.5deg;--lift:3px;--overlap:.5;--card-w:clamp(34px, min(9.6vw, 6.2vh), 48px);margin-bottom:calc(var(--card-w) * -.28)}
+.fan--player{--step:4.4deg;--lift:5px;--overlap:.3;--card-w:clamp(40px, min(12.4vw, 8.2vh), 62px);margin-top:calc(var(--card-w) * -.42);padding-bottom:2px}
+.fan .card{
+  --c:calc((var(--n) - 1) / 2);
+  --d:max(calc(var(--i) - var(--c)), calc(var(--c) - var(--i)));
+  --fan-y:calc(var(--d) * var(--lift));
+  --fan-r:calc((var(--i) - var(--c)) * var(--step));
+  margin-inline:calc(var(--card-w) * var(--overlap) * -1);
+  transform:translateY(var(--fan-y)) rotate(var(--fan-r));
+  animation-delay:calc(var(--i) * 55ms);
+}
+.fan--player .card{z-index:calc(var(--i) + 1)}
+.fan--opponent .card{animation-name:deal-in-back}
+.fan--opponent:hover .card{animation-play-state:paused}
+
+/* ───────────── 7 · БОКОВЫЕ ЗОНЫ: КОЛОДА 36 + КОЗЫРЬ / СТОПКА «БИТО» ──── */
+.side{display:grid;justify-items:center;gap:4px;min-width:0}
+.side__caption{font-size:8px;font-weight:700;letter-spacing:.12em;color:var(--tx-dim);text-align:center;white-space:nowrap}
+.side__caption b{color:var(--gold-1);font-variant-numeric:tabular-nums}
+
+.side--deck{--card-w:clamp(36px, min(10.4vw, 6.8vh), 50px)}
+.deck{position:relative;width:var(--card-w);height:calc(var(--card-w) * 1.94)}
+/* козырь лежит ПОД колодой, чуть повёрнутый */
+.deck .trump{position:absolute;left:0;bottom:0;z-index:1;transform:rotate(9deg);transform-origin:50% 82%;animation:trump-flip .6s .12s var(--ease) both}
+/* стопка рубашек колоды */
+.deck__stack{position:absolute;left:0;top:0;z-index:2;width:var(--card-w);height:calc(var(--card-w) * 1.42);display:block}
+.deck__stack i{position:absolute;inset:0;display:block}
+.deck__stack i:nth-child(1){transform:rotate(-3.2deg) translateY(1.5px)}
+.deck__stack i:nth-child(2){transform:rotate(1.8deg)}
+.deck__stack i:nth-child(3){transform:rotate(-.6deg)}
+/* счётчик оставшихся карт в колоде */
+.deck__badge{
+  position:absolute;right:-8px;top:-9px;z-index:4;
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:25px;height:25px;padding:0 6px;border-radius:999px;
+  font-size:11px;font-weight:800;color:var(--tx-dark);font-variant-numeric:tabular-nums;
+  background:linear-gradient(178deg,var(--gold-1),var(--gold-2) 55%,var(--gold-3));
+  border:1px solid #fff6da;box-shadow:0 0 14px var(--neon), inset 0 1px 0 #fff;
+  transition:transform .2s var(--ease);
+}
+.deck.is-dealing .deck__badge{animation:badge-tick .35s var(--ease)}
+.deck.is-empty{opacity:.35}
+.deck.is-empty .deck__stack{visibility:hidden}
+
+.side--bito{--card-w:clamp(32px, min(9.4vw, 6.2vh), 46px)}
+.bito{position:relative;width:var(--card-w);height:calc(var(--card-w) * 1.42);transition:opacity .3s,filter .3s}
+.bito__stack{position:absolute;inset:0;display:block}
+.bito__stack i{position:absolute;inset:0;display:block}
+.bito__stack i:nth-child(1){transform:rotate(4.5deg)}
+.bito__stack i:nth-child(2){transform:rotate(-3.5deg)}
+.bito__mark{
+  position:absolute;left:0;right:0;bottom:-1px;z-index:3;text-align:center;
+  font-size:8px;font-weight:800;letter-spacing:.18em;color:var(--gold-1);
+  text-shadow:0 1px 4px rgba(0,0,0,.9);
+}
+.bito.is-empty{opacity:.2;filter:grayscale(.6)}
+.bito.is-clearing{animation:bito-sweep .55s var(--ease)}
+.bito.is-full{filter:saturate(1.1) brightness(1.05)}
+
+/* ───────────── 8 · ЦЕНТР СТОЛА: 6 СЛОТОВ ПАР «АТАКА + ОТЕТКА» ────────── */
+.slots{
+  display:grid;
+  grid-template-columns:repeat(3,auto);
+  gap:4px;
+  place-content:center;
+  min-width:0;min-height:0;
+  --card-w:clamp(32px, min(10.4vw, 6.6vh), 52px);
+}
+/* размер слота = карта + смещение ответной карты, чтобы ничего не заползало */
+.slot{position:relative;width:calc(var(--card-w) * 1.4);height:calc(var(--card-w) * 1.62)}
+.slot:not(.is-filled)::before{
+  content:"";position:absolute;left:0;bottom:calc(var(--card-w) * .2);
+  width:var(--card-w);height:calc(var(--card-w) * 1.42);
+  border:1px dashed rgba(243,202,98,.22);border-radius:calc(var(--card-w) * .14);
+  background:rgba(0,0,0,.14);
+}
+.slot__attack{position:absolute;left:0;bottom:calc(var(--card-w) * .2);z-index:1;animation:card-drop .3s var(--ease) both}
+.slot__defend{position:absolute;left:calc(var(--card-w) * .4);bottom:0;z-index:2;transform:rotate(7deg);animation:card-beat .36s .08s var(--ease) both}
+.slot.is-filled{animation:slot-pop .32s var(--ease)}
+.slot.is-beaten .slot__defend{animation:card-beat .36s var(--ease) both}
+.slot.is-taken .card{animation:card-take .55s var(--ease) forwards}
+.slot.is-hit{animation:slot-hit .4s ease-out}
+
+/* ─────── 9 · КРУПНЫЕ КНОПКИ ДЕЙСТВИЙ ПОД БОЛЬШОЙ ПАЛЕЦ (БИТО / БЕРУ) ─── */
+.actions{display:grid;grid-template-columns:1.14fr .6fr .94fr;gap:8px;align-items:stretch;z-index:5}
+.actions .btn{
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  min-height:54px;padding:0 6px;border-radius:17px;
+  font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+  transition:transform .14s var(--ease),box-shadow .2s,filter .2s;
+}
+.btn--primary{
+  position:relative;overflow:hidden;color:var(--tx-dark);
+  background:linear-gradient(178deg,var(--gold-1),var(--gold-2) 52%,var(--gold-3));
+  border:1px solid #fff4d2;
+  box-shadow:0 10px 24px rgba(150,110,16,.42), 0 0 20px var(--neon-soft), inset 0 1px 0 #fff;
+}
+.btn--primary::after{
+  content:"";position:absolute;top:-45%;bottom:-45%;left:-50%;width:34%;pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent);
+  transform:rotate(14deg);animation:btn-sheen 3.6s ease-in-out infinite;
+}
+.btn--take{
+  color:#ffe6e8;text-shadow:0 1px 2px rgba(0,0,0,.45);
+  background:linear-gradient(178deg,#ff8b8b 0%,var(--danger) 46%,var(--danger-deep) 100%);
+  border:1px solid rgba(255,190,190,.5);
+  box-shadow:0 10px 22px rgba(150,16,26,.42), inset 0 1px 0 rgba(255,255,255,.42);
+}
+.btn--ghost{
+  color:var(--gold-1);background:var(--glass-bg);border:1px solid var(--glass-brd);
+  box-shadow:var(--glass-sh);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+}
+.actions .btn:active{transform:translateY(2px) scale(.985);filter:brightness(1.06)}
+.btn:disabled,.btn.is-disabled{opacity:.32;filter:grayscale(.65);pointer-events:none;box-shadow:none}
+
+/* ───────────────────── 10 · ИГРАЛЬНЫЕ КАРТЫ (лицом вверх) ─────────────── */
+.card{
+  position:relative;flex:0 0 auto;
+  width:var(--card-w);height:calc(var(--card-w) * 1.42);
+  border-radius:calc(var(--card-w) * .14);
+  color:var(--suit-dark);
+  background:linear-gradient(158deg,var(--paper-1) 0%,var(--paper-2) 46%,var(--paper-3) 100%);
+  border:1px solid rgba(10,18,26,.38);
+  box-shadow:
+    0 7px 16px rgba(0,0,0,.48),
+    inset 0 1px 0 rgba(255,255,255,.95),
+    inset 0 -5px 12px rgba(0,0,0,.08);
+  transition:transform .18s var(--ease),box-shadow .22s,filter .22s;
+  animation:deal-in .44s var(--ease) both;
+}
+/* глянец бумаги */
+.card::before{
+  content:"";position:absolute;inset:0;z-index:3;pointer-events:none;border-radius:inherit;
+  background:linear-gradient(116deg,rgba(255,255,255,.9) 0 14%,rgba(255,255,255,0) 36%,rgba(255,255,255,0) 66%,rgba(255,255,255,.42) 90%);
+  opacity:.5;mix-blend-mode:screen;
+}
+/* уголок «ранг + масть» */
+.card .c{position:absolute;z-index:2;display:grid;justify-items:center;line-height:1;font-weight:800;letter-spacing:-.02em}
+.card .c-tl{top:5.5%;left:8%}
+.card .c-br{bottom:5.5%;right:8%;transform:rotate(180deg)}
+.card .r{font-size:calc(var(--card-w) * .27)}
+.card .s{font-size:calc(var(--card-w) * .2);margin-top:1px}
+/* крупная масть по центру */
+.card .pip{
+  position:absolute;inset:0;z-index:1;display:grid;place-items:center;
+  font-size:calc(var(--card-w) * .52);
+  text-shadow:0 1px 0 rgba(255,255,255,.8), 0 -1px 1px rgba(0,0,0,.12);
+}
+/* 🔴 красные и ⚫ тёмные масти */
+.card--spade,
+.card--club{color:var(--suit-dark)}
+.card--heart,
+.card--diamond{color:var(--suit-red)}
+.card--heart .pip,
+.card--diamond .pip{background:linear-gradient(180deg,#f0424d,var(--suit-red-dk));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 rgba(255,255,255,.7))}
+.card--spade .pip,
+.card--club .pip{background:linear-gradient(180deg,#2b3947,var(--suit-dark-dk));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 rgba(255,255,255,.7))}
+/* козырная карта — золотой ореол */
+.card--trump{box-shadow:0 0 0 1px var(--gold-2), 0 0 16px var(--neon), 0 7px 16px rgba(0,0,0,.48)}
+.card--trump::after{
+  content:"";position:absolute;inset:-2px;z-index:4;pointer-events:none;border-radius:inherit;
+  border:1px solid rgba(243,202,98,.65);
+  animation:trump-glow 2.6s ease-in-out infinite;
+}
+
+/* ───────────────── 11 · РУБАШКА КАРТЫ (геометрия + золото) ───────────── */
+.card--back,
+.deck__stack i,
+.bito__stack i{
+  border-radius:calc(var(--card-w) * .14);
+  border:1px solid rgba(243,202,98,.55);
+  background:
+    repeating-linear-gradient(45deg,  rgba(243,202,98,.17) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(-45deg, rgba(243,202,98,.13) 0 2px, transparent 2px 6px),
+    radial-gradient(circle at 50% 44%, #1c9264 0%, #0b5c3e 46%, #04301f 100%);
+  box-shadow:
+    0 7px 16px rgba(0,0,0,.5),
+    inset 0 0 0 2px rgba(2,24,16,.85),
+    inset 0 1px 0 rgba(255,255,255,.2);
+}
+/* ромбовидная эмблема рубашки */
+.card--back::after,
+.deck__stack i::after,
+.bito__stack i::after{
+  content:"";position:absolute;inset:14%;border-radius:calc(var(--card-w) * .08);
+  transform:rotate(45deg);
+  border:1px solid rgba(243,202,98,.62);
+  box-shadow:0 0 0 3px rgba(4,42,28,.55), 0 0 12px rgba(243,202,98,.28);
+  background:radial-gradient(circle at 50% 50%, rgba(243,202,98,.24), transparent 64%);
+}
+.card--back{color:transparent}
+.card--back::before{opacity:.32}
+
+/* ─────────────── 12 · СОСТОЯНИЯ КАРТ И СТОЛА (хуки для game.js) ──────── */
+/* Выбранная карта игрока: приподнята и подсвечена золотом */
+.fan--player .card{cursor:pointer}
+.fan--player .card.is-playable{filter:brightness(1.05) saturate(1.04)}
+.fan--player .card.is-selected{
+  z-index:40;
+  transform:translateY(calc(var(--fan-y) - 26px)) rotate(calc(var(--fan-r) * .3)) scale(1.05);
+  box-shadow:0 0 0 1px var(--gold-1), 0 0 24px var(--neon), 0 16px 28px rgba(0,0,0,.6);
+  filter:brightness(1.08);
+}
+/* короткий «отскок» под пальцем */
+.fan--player .card:active{
+  transform:translateY(calc(var(--fan-y) - 15px)) rotate(calc(var(--fan-r) * .5)) scale(1.03);
+}
+/* стол готов принять карту (клик по столу = ход выбранной картой) */
+.table.is-droppable .table__neon{border-color:rgba(120,255,196,.4);box-shadow:inset 0 0 18px rgba(120,255,196,.2)}
+.table.is-droppable .slot:not(.is-filled)::before{
+  border-color:rgba(160,255,214,.55);background:rgba(120,255,196,.10);
+  animation:slot-ready 1.5s ease-in-out infinite;
+}
+/* мёртвые / неиграбельные карты */
+.card.is-dead,.card.is-locked{pointer-events:none}
+.card.is-dead{opacity:.34;filter:grayscale(.85) brightness(.7)}
+.card.is-bit{animation:card-bit .45s var(--ease) both}
+.card.is-taking{animation:card-take .55s var(--ease) forwards}
+@media (hover:hover) and (pointer:fine){
+  .fan--player .card.is-playable:hover{
+    transform:translateY(calc(var(--fan-y) - 18px)) rotate(calc(var(--fan-r) * .4)) scale(1.03);
+  }
+}
+
+/* ──────────────────────── 13 · АНИМАЦИИ ЭТАПА 1 ──────────────────────── */
+/* карты вылетают из-под колоды (слева) и встают в веер */
+@keyframes deal-in{
+  from{opacity:0;transform:translate(-72px,-92px) rotate(-16deg) scale(.72)}
+  to{opacity:1}
+}
+@keyframes deal-in-back{
+  from{opacity:0;transform:translate(-78px,-150px) rotate(22deg) scale(.72)}
+  to{opacity:1}
+}
+@keyframes card-drop{
+  from{opacity:0;transform:translate(-74px,-46px) rotate(-20deg) scale(.8)}
+  to{opacity:1;transform:none}
+}
+@keyframes card-beat{
+  from{opacity:0;transform:translate(-96px,-58px) rotate(-26deg) scale(.8)}
+  to{opacity:1;transform:rotate(7deg)}
+}
+@keyframes card-take{
+  to{opacity:0;transform:translateY(150%) rotate(16deg) scale(.72)}
+}
+@keyframes card-bit{
+  to{opacity:0;transform:translate(90px,26px) rotate(24deg) scale(.7)}
+}
+@keyframes trump-flip{
+  from{opacity:0;transform:rotate(-86deg) scale(.55)}
+  to{opacity:1;transform:rotate(9deg)}
+}
+@keyframes trump-glow{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes slot-pop{from{transform:scale(.88)}to{transform:scale(1)}}
+@keyframes slot-hit{0%,100%{filter:brightness(1)}35%{filter:brightness(1.35) drop-shadow(0 0 12px var(--neon))}}
+@keyframes slot-ready{0%,100%{box-shadow:0 0 0 rgba(120,255,196,0)}50%{box-shadow:0 0 14px rgba(120,255,196,.35)}}
+@keyframes neon-breathe{0%,100%{opacity:.55}50%{opacity:1}}
+@keyframes dot-blink{0%,70%,100%{opacity:.2;transform:translateY(0)}35%{opacity:1;transform:translateY(-2px)}}
+@keyframes status-pulse{0%,100%{box-shadow:0 0 12px rgba(255,190,90,.18)}50%{box-shadow:0 0 26px rgba(255,190,90,.42)}}
+@keyframes ai-thinking{
+  0%,100%{box-shadow:var(--glass-sh), 0 0 0 rgba(255,90,110,0)}
+  50%{box-shadow:var(--glass-sh), 0 0 18px rgba(255,90,110,.35)}
+}
+@keyframes badge-tick{0%,100%{transform:scale(1)}45%{transform:scale(1.28)}}
+@keyframes bito-sweep{to{opacity:0;transform:translate(120%,14%) rotate(26deg) scale(.7)}}
+@keyframes btn-sheen{0%{left:-50%}55%,100%{left:135%}}
+@keyframes balance-pop{0%,100%{transform:scale(1)}38%{transform:scale(1.12)}}
+@keyframes balance-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}45%{transform:translateX(5px)}70%{transform:translateX(-3px)}}
+@keyframes fan-sway{0%,100%{transform:rotate(0deg) translateY(0)}50%{transform:rotate(.5deg) translateY(-2px)}}
+.fan--opponent{animation:fan-sway 7.5s ease-in-out infinite}
+
+/* ──────── 14 · АДАПТИВ: 320–430 px по ширине, ЛЮБАЯ высота — без скролла ─ */
+@media (max-width:370px){
+  :root{--pad:8px}
+  .brand__title{font-size:12.5px}
+  .actions .btn{font-size:11px;letter-spacing:.02em}
+  .status{font-size:9.5px;padding:5px 11px;letter-spacing:.07em}
+  .seat__hint{font-size:7.5px}
+}
+@media (max-width:330px){
+  :root{--pad:6px}
+  .brand__sub,.seat__hint{display:none}
+  .side__caption{font-size:7px;letter-spacing:.06em}
+  .btn--exit{padding:8px 9px}
+  .btn--sound{padding:8px 8px}
+  .bet__label{display:none}
+  .bet__opt > span{font-size:10px}
+}
+/* невысокие телефоны (iPhone SE / старые Android) — уплотняем стол */
+@media (max-height:700px){
+  .hud--top{gap:4px}
+  .seat__hint{display:none}
+  .table__surface{gap:2px;padding:7px 6px}
+  .fan--opponent{margin-bottom:calc(var(--card-w) * -.34)}
+  .fan--player{margin-top:calc(var(--card-w) * -.5)}
+  .actions .btn{min-height:50px}
+}
+@media (max-height:600px){
+  :root{--card-w:clamp(34px, min(11vw, 6.6vh), 46px);--pad:7px}
+  .brand__sub,.side__caption{display:none}
+  .fan--player{--card-w:clamp(34px, min(11.6vw, 7.4vh), 50px)}
+  .fan--opponent{--card-w:clamp(30px, min(9vw, 5.6vh), 40px)}
+  .slots{--card-w:clamp(28px, min(9.6vw, 5.6vh), 42px)}
+  .side--deck{--card-w:clamp(30px, min(9.6vw, 5.6vh), 42px)}
+  .side--bito{--card-w:clamp(28px, min(8.8vw, 5.2vh), 40px)}
+  .actions .btn{min-height:46px;font-size:11px}
+  .status{font-size:9px;padding:4px 10px}
+}
+/* альбомная ориентация телефона → компактный «мини-режим»: слоты в один ряд */
+@media (orientation:landscape) and (max-height:560px){
+  :root{--card-w:clamp(28px, 5.6vh, 40px);--pad:6px}
+  .app{gap:5px}
+  .brand__sub,.seat__hint,.side__caption{display:none}
+  .fan--player{--card-w:clamp(28px, 6vh, 42px);--lift:2px}
+  .fan--opponent{--card-w:clamp(26px, 5.4vh, 36px);--lift:1px;--overlap:.56}
+  .slots{--card-w:clamp(24px, 4.8vh, 34px);grid-template-columns:repeat(6,auto);gap:3px}
+  .side--deck{--card-w:clamp(26px, 5.2vh, 36px)}
+  .side--bito{--card-w:clamp(24px, 4.8vh, 32px)}
+  .zone--middle{gap:4px}
+  .seat{gap:5px;padding:2px 7px}
+  .seat__avatar{font-size:14px}
+  .seat .counter{min-width:19px;height:19px;font-size:10px}
+  .status{padding:3px 9px;font-size:8.5px;letter-spacing:.06em}
+  .balance,.btn--exit,.btn--sound{padding-block:4px}
+  .balance__value{font-size:13px}
+  .bet__opt > span{padding:3px 0}
+  .table__surface{padding:6px;gap:2px;border-radius:18px}
+  .table__neon{inset:4px;border-radius:14px}
+  .actions{gap:6px}
+  .actions .btn{min-height:38px;border-radius:13px;font-size:11px}
+}
+/* совсем узкий альбом (например 568×320) — аккуратная подсказка повернуть телефон */
+@media (orientation:landscape) and (max-height:380px){
+  .fan--player{--lift:1px}
+  .fan--opponent{--lift:0px;--step:5deg}
+  .actions .btn{min-height:32px}
+  .seat__info{display:none}
+  .app::after{
+    content:"🃏  Стол «Долгиново» рассчитан на портрет — поверните телефон вертикально";
+    position:absolute;inset:0;z-index:50;
+    display:grid;place-items:center;text-align:center;padding:20px;
+    font-size:12px;font-weight:700;letter-spacing:.05em;line-height:1.6;color:var(--gold-1);
+    background:rgba(2,18,13,.94);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  }
+}
+/* планшет / десктоп: узкая «телефонная» колонка по центру экрана */
+@media (min-width:600px){
+  :root{--pad:14px}
+  .app{border-left:1px solid rgba(243,202,98,.12);border-right:1px solid rgba(243,202,98,.12)}
+}
+/* ─────────────────────── 15 · prefers-reduced-motion ─────────────────── */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+}
+
+
+
+
+
+

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>🃏 ДОЛГИНОВО · ДУРАК</title>
+  <meta name="theme-color" content="#04241b">
+  <meta name="description" content="Telegram Mini App «Долгиново · Дурак» — подкидной дурак на 36 карт за барным столом.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🃏%3C/text%3E%3C/svg%3E">
+
+  <!-- ═════ Официальный Telegram WebApp SDK — строго ДО подключения наших модулей ═════ -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Кириллический шрифт Exo 2 (600 / 700 / 800) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700;800&display=swap">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ═══════════════ ВЕРХНЯЯ ПАНЕЛЬ (стеклянный HUD) ═══════════════ -->
+  <header class="hud hud--top">
+
+    <div class="hud__row hud__row--main">
+      <div class="brand" id="brand">
+        <span class="brand__icon" aria-hidden="true">🃏</span>
+        <span class="brand__text">
+          <span class="brand__title">ДОЛГИНОВО<span class="brand__dot"> · </span>ДУРАК</span>
+          <span class="brand__sub">Telegram&nbsp;Mini&nbsp;App · подкидной · 36 карт</span>
+        </span>
+      </div>
+
+      <div class="balance" id="balance" title="Баланс">
+        <span class="balance__label">БАЛАНС</span>
+        <span class="balance__value" id="balance-value">1&nbsp;000</span>
+        <span class="balance__currency">₽</span>
+      </div>
+
+      <button class="btn btn--exit" id="btn-exit" type="button" aria-label="Выйти из игры">ВЫХОД</button>
+    </div>
+
+    <div class="hud__row hud__row--sub">
+      <div class="bet" id="bet-selector" role="radiogroup" aria-label="Ставка на партию">
+        <span class="bet__label">СТАВКА</span>
+        <div class="bet__options">
+          <label class="bet__opt is-active"><input type="radio" name="bet" value="10" checked><span>10</span></label>
+          <label class="bet__opt"><input type="radio" name="bet" value="50"><span>50</span></label>
+          <label class="bet__opt"><input type="radio" name="bet" value="100"><span>100</span></label>
+          <label class="bet__opt"><input type="radio" name="bet" value="500"><span>500</span></label>
+        </div>
+      </div>
+
+      <button class="btn btn--sound is-on" id="btn-sound" type="button" aria-pressed="true" aria-label="Звук вкл/выкл">
+        <span class="btn__icon" aria-hidden="true"><span class="ic-on">🔊</span><span class="ic-off">🔇</span></span>
+        <span class="btn__text">ЗВУК</span>
+      </button>
+    </div>
+
+  </header>
+
+  <!-- ═══════════════ КАРТОЧНЫЙ СТОЛ ═══════════════ -->
+  <main class="table" id="table">
+    <div class="table__surface">
+      <span class="table__neon" aria-hidden="true"></span>
+
+      <!-- ───────── ВЕРХНЯЯ ЗОНА СТОЛА: соперник (ИИ) + плашка статуса ───────── -->
+      <section class="zone zone--opponent">
+
+        <div class="seat seat--ai is-thinking" id="seat-ai">
+          <span class="seat__avatar" aria-hidden="true">🤖</span>
+          <span class="seat__info">
+            <span class="seat__name">ИИ · DOLGINOK</span>
+            <span class="seat__hint">ставка <b id="bet-ai">10</b> ₽</span>
+          </span>
+          <span class="counter" id="opponent-count" title="Карт у соперника">6</span>
+        </div>
+
+        <div class="fan fan--opponent" id="opponent-fan" style="--n:6" aria-label="Карты соперника, рубашками вверх">
+          <span class="card card--back" style="--i:0"></span>
+          <span class="card card--back" style="--i:1"></span>
+          <span class="card card--back" style="--i:2"></span>
+          <span class="card card--back" style="--i:3"></span>
+          <span class="card card--back" style="--i:4"></span>
+          <span class="card card--back" style="--i:5"></span>
+        </div>
+
+        <div class="status status--ai" id="status" role="status" aria-live="polite">
+          <span class="status__icon" aria-hidden="true">⏳</span>
+          <span class="status__text" id="status-text">ИИ думает…</span>
+          <span class="status__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        </div>
+
+      </section>
+
+      <!-- ───────── БОКОВЫЕ + ЦЕНТР СТОЛА ───────── -->
+      <section class="zone zone--middle">
+
+        <!-- Боковая зона слева: колода 36 карт + козырь под ней + счётчик -->
+        <aside class="side side--deck">
+          <div class="deck" id="deck" title="Колода">
+            <span class="card card--spade card--trump trump" id="trump-card">
+              <span class="c c-tl"><span class="r">8</span><span class="s">♠</span></span>
+              <span class="pip">♠</span>
+              <span class="c c-br"><span class="r">8</span><span class="s">♠</span></span>
+            </span>
+            <span class="deck__stack" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="deck__badge" id="deck-count">24</span>
+          </div>
+          <span class="side__caption">КОЛОДА · <b id="deck-count-label">24</b> карт</span>
+        </aside>
+
+        <!-- Центральная зона: до 6 слотов пар «атака + защита» -->
+        <div class="slots" id="table-slots" aria-label="Карты на столе">
+
+          <div class="slot is-filled" data-slot="0">
+            <span class="card card--heart slot__attack">
+              <span class="c c-tl"><span class="r">7</span><span class="s">♥</span></span>
+              <span class="pip">♥</span>
+              <span class="c c-br"><span class="r">7</span><span class="s">♥</span></span>
+            </span>
+            <span class="card card--heart slot__defend">
+              <span class="c c-tl"><span class="r">9</span><span class="s">♥</span></span>
+              <span class="pip">♥</span>
+              <span class="c c-br"><span class="r">9</span><span class="s">♥</span></span>
+            </span>
+          </div>
+
+          <div class="slot is-filled" data-slot="1">
+            <span class="card card--diamond slot__attack">
+              <span class="c c-tl"><span class="r">10</span><span class="s">♦</span></span>
+              <span class="pip">♦</span>
+              <span class="c c-br"><span class="r">10</span><span class="s">♦</span></span>
+            </span>
+            <span class="card card--diamond slot__defend">
+              <span class="c c-tl"><span class="r">K</span><span class="s">♦</span></span>
+              <span class="pip">♦</span>
+              <span class="c c-br"><span class="r">K</span><span class="s">♦</span></span>
+            </span>
+          </div>
+
+          <div class="slot is-filled" data-slot="2">
+            <span class="card card--spade slot__attack">
+              <span class="c c-tl"><span class="r">6</span><span class="s">♠</span></span>
+              <span class="pip">♠</span>
+              <span class="c c-br"><span class="r">6</span><span class="s">♠</span></span>
+            </span>
+            <span class="card card--spade card--trump slot__defend">
+              <span class="c c-tl"><span class="r">J</span><span class="s">♠</span></span>
+              <span class="pip">♠</span>
+              <span class="c c-br"><span class="r">J</span><span class="s">♠</span></span>
+            </span>
+          </div>
+
+          <div class="slot" data-slot="3"></div>
+          <div class="slot" data-slot="4"></div>
+          <div class="slot" data-slot="5"></div>
+
+        </div>
+
+        <!-- Боковая зона справа: стопка «БИТО» -->
+        <aside class="side side--bito">
+          <div class="bito is-empty" id="bito-pile" title="Отбой">
+            <span class="bito__stack" aria-hidden="true"><i></i><i></i></span>
+            <span class="bito__mark">БИТО</span>
+          </div>
+          <span class="side__caption">БИТО · <b id="bito-count">0</b></span>
+        </aside>
+
+      </section>
+
+      <!-- ───────── НИЖНЯЯ ЗОНА СТОЛА: ваши карты ───────── -->
+      <section class="zone zone--player">
+
+        <div class="seat seat--you" id="seat-you">
+          <span class="seat__avatar" aria-hidden="true">🧑‍🚀</span>
+          <span class="seat__info">
+            <span class="seat__name">ВЫ · DOLGIN</span>
+            <span class="seat__hint">нажми карту — поднимем · ещё раз или клик по столу — ход</span>
+          </span>
+          <span class="counter" id="player-count" title="Ваши карты">6</span>
+        </div>
+
+        <div class="fan fan--player" id="player-fan" style="--n:6" aria-label="Ваши карты">
+          <span class="card card--spade card--trump is-playable" style="--i:0" data-card="6♠">
+            <span class="c c-tl"><span class="r">6</span><span class="s">♠</span></span>
+            <span class="pip">♠</span>
+            <span class="c c-br"><span class="r">6</span><span class="s">♠</span></span>
+          </span>
+          <span class="card card--club is-playable" style="--i:1" data-card="J♣">
+            <span class="c c-tl"><span class="r">J</span><span class="s">♣</span></span>
+            <span class="pip">♣</span>
+            <span class="c c-br"><span class="r">J</span><span class="s">♣</span></span>
+          </span>
+          <span class="card card--heart is-playable" style="--i:2" data-card="10♥">
+            <span class="c c-tl"><span class="r">10</span><span class="s">♥</span></span>
+            <span class="pip">♥</span>
+            <span class="c c-br"><span class="r">10</span><span class="s">♥</span></span>
+          </span>
+          <span class="card card--diamond is-playable" style="--i:3" data-card="K♦">
+            <span class="c c-tl"><span class="r">K</span><span class="s">♦</span></span>
+            <span class="pip">♦</span>
+            <span class="c c-br"><span class="r">K</span><span class="s">♦</span></span>
+          </span>
+          <span class="card card--spade card--trump is-playable is-selected" style="--i:4" data-card="A♠">
+            <span class="c c-tl"><span class="r">A</span><span class="s">♠</span></span>
+            <span class="pip">♠</span>
+            <span class="c c-br"><span class="r">A</span><span class="s">♠</span></span>
+          </span>
+          <span class="card card--heart is-playable" style="--i:5" data-card="Q♥">
+            <span class="c c-tl"><span class="r">Q</span><span class="s">♥</span></span>
+            <span class="pip">♥</span>
+            <span class="c c-br"><span class="r">Q</span><span class="s">♥</span></span>
+          </span>
+        </div>
+
+      </section>
+
+    </div><!-- /.table__surface -->
+
+    <!-- ───────── КРУПНЫЕ КНОПКИ ДЕЙСТВИЙ ПОД БОЛЬШОЙ ПАЛЕЦ ───────── -->
+    <div class="actions" id="actions">
+      <button class="btn btn--primary" id="btn-bito" type="button">БИТО / ПАС</button>
+      <button class="btn btn--take" id="btn-take" type="button">БЕРУ</button>
+      <button class="btn btn--ghost" id="btn-new" type="button">НОВАЯ ИГРА</button>
+    </div>
+
+  </main>
+
+</div><!-- /.app -->
+
+<!-- Игровая логика (ЭТАП 2). Telegram SDK выше в <head> загружается строго до этого модуля. -->
+<script type="module" src="js/game.js"></script>
+
+</body>
+</html>
